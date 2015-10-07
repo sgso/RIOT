@@ -23,6 +23,7 @@
 #include "periph/uart.h"
 #include "periph_conf.h"
 #include "sched.h"
+#include "board.h"
 
 #define ENABLE_DEBUG (0)
 #include "debug.h"
@@ -237,6 +238,8 @@ void uart_poweroff(uart_t uart)
 void isr_usic5(void)
 {
     USIC_CH_TypeDef *usic = _usic(0);
+
+    LED_1_TOGGLE;
 
     if (usic->PSR & USIC_CH_PSR_RIF_Msk) {
         char data = (char)usic->RBUF;

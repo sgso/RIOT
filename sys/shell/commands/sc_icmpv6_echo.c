@@ -136,6 +136,7 @@ int _icmpv6_ping(int argc, char **argv)
     timex_t delay = { 1, 0 };
     char *addr_str;
     ipv6_addr_t addr;
+    msg_t msg;
     gnrc_netreg_entry_t *ipv6_entry, my_entry = { NULL, ICMPV6_ECHO_REP,
                                                   thread_getpid()
                                                 };
@@ -211,9 +212,8 @@ int _icmpv6_ping(int argc, char **argv)
     vtimer_now(&start);
 
     while ((remaining--) > 0) {
-        msg_t msg;
         gnrc_pktsnip_t *pkt;
-        timex_t start, stop, timeout = { 5, 0 };
+        timex_t start, stop, timeout = { 1, 0 };
 
         pkt = gnrc_icmpv6_echo_req_build(id, ++max_seq_expected, NULL,
                                          payload_len);
@@ -272,6 +272,14 @@ int _icmpv6_ping(int argc, char **argv)
             puts("ping timeout");
         }
 
+        while(msg_try_receive(&msg) > 0) {
+            if (msg.type == GNRC_NETAPI_MSG_TYPE_RCV) {
+                printf("dropping additional response packet (probably caused by duplicates)\n");
+                gnrc_pktsnip_t *pkt = (gnrc_pktsnip_t *)msg.content.ptr;
+                gnrc_pktbuf_release(pkt);
+            }
+        }
+
         if (remaining > 0) {
             vtimer_sleep(delay);
         }
@@ -284,6 +292,13 @@ int _icmpv6_ping(int argc, char **argv)
     stop = timex_sub(stop, start);
 
     gnrc_netreg_unregister(GNRC_NETTYPE_ICMPV6, &my_entry);
+    while(msg_try_receive(&msg) > 0) {
+        if (msg.type == GNRC_NETAPI_MSG_TYPE_RCV) {
+            printf("dropping additional response packet (probably caused by duplicates)\n");
+            gnrc_pktsnip_t *pkt = (gnrc_pktsnip_t *)msg.content.ptr;
+            gnrc_pktbuf_release(pkt);
+        }
+    }
 
     printf("--- %s ping statistics ---\n", addr_str);
 
