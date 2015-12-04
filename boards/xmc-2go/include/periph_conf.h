@@ -124,7 +124,7 @@ static const spi_instance_t spi_instance[] = {
         .mosi_pin = GPIO_ALT(P0, 7, GPIO_ALT_OUT_7),
         .miso_pin = GPIO_PIN(P0, 6),
 
-        .sclk_pin = GPIO_PIN(P0, 8),
+        .sclk_pin = GPIO_ALT(P0, 8, GPIO_ALT_OUT_7),
         .msls_pin = GPIO_PIN(P0, 9)
     }
 };
