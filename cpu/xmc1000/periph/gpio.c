@@ -21,7 +21,6 @@
 #include <stddef.h>
 
 #include "periph/gpio.h"
-#include "periph_conf.h"
 #include "sched.h"
 #include "thread.h"
 

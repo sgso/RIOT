@@ -152,10 +152,30 @@ typedef enum {
  * @brief   Type for mapping event sources of the ERU
  * @{
  */
-typedef struct {
+typedef struct __attribute__((packed)) {
     unsigned exs : 2;           /**< event source selector (see section 6.9.1) */
     unsigned connection : 2;    /**< event source value */
 } eru_input_t;
+/** @} */
+
+/**
+ * @brief GPIO mapping to Event Request Unit (ERU) inputs
+ * @{
+ */
+static const eru_input_t eru_mapping[] = {
+    ERU(0, B0),                 /* P2.0 */
+    ERU(1, B0),                 /* P2.1 */
+    ERU(1, B1),                 /* P2.2 */
+    ERU(1, B1),                 /* P2.3 */
+    ERU(0, A1),                 /* P2.4 */
+    ERU(1, A1),                 /* P2.5 */
+    ERU(2, A1),                 /* P2.6 */
+    ERU(3, A1),                 /* P2.7 */
+    ERU(3, B1),                 /* P2.8 */
+    ERU(3, B0),                 /* P2.9 */
+    ERU(2, B0),                 /* P2.10 */
+    ERU(2, B1)                  /* P2.11 */
+};
 /** @} */
 
 #ifdef __cplusplus
