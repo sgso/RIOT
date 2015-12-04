@@ -169,27 +169,6 @@ static const i2c_instance_t i2c_instance[] = {
 #define I2C_0_EN           (1)
 /** @} */
 
-
-/**
- * @name GPIO mapping to Event Request Unit (ERU) inputs
- * @{
- */
-static const eru_input_t eru_mapping[12] = {
-    ERU(0, B0),                 /* P2.0 */
-    ERU(1, B0),                 /* P2.1 */
-    ERU(1, B1),                 /* P2.2 */
-    ERU(1, B1),                 /* P2.3 */
-    ERU(0, A1),                 /* P2.4 */
-    ERU(1, A1),                 /* P2.5 */
-    ERU(2, A1),                 /* P2.6 */
-    ERU(3, A1),                 /* P2.7 */
-    ERU(3, B1),                 /* P2.8 */
-    ERU(3, B0),                 /* P2.9 */
-    ERU(2, B0),                 /* P2.10 */
-    ERU(2, B1)                  /* P2.11 */
-};
-/** @} */
-
 #ifdef __cplusplus
 }
 #endif
