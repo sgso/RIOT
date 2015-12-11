@@ -42,7 +42,11 @@ static const usic_mode_t _xmc_usic_i2c_master_mode = {
 
     .ccr =
         /* mode: IIC (I2C) */
-        (4 << USIC_CH_CCR_MODE_Pos),
+        (4 << USIC_CH_CCR_MODE_Pos) |
+        /* receive interrupt: enabled */
+        (1 << USIC_CH_CCR_AIEN_Pos) |
+        (1 << USIC_CH_CCR_RIEN_Pos) |
+        (1 << USIC_CH_CCR_TBIEN_Pos),
 
     .sctr =
         /* shift direction: MSB first */
@@ -76,16 +80,16 @@ static const usic_mode_t _xmc_usic_i2c_master_mode = {
         (0 << USIC_CH_PCR_IICMode_SCRIEN_Pos) |
         /* repeated start condition received interrupt: disabled */
         (0 << USIC_CH_PCR_IICMode_RSCRIEN_Pos) |
-        /* stop condition receive interrupt: disabled */
-        (0 << USIC_CH_PCR_IICMode_PCRIEN_Pos) |
-        /* nack interrupt: disabled */
-        (0 << USIC_CH_PCR_IICMode_NACKIEN_Pos) |
+        /* stop condition receive interrupt: enabled */
+        (1 << USIC_CH_PCR_IICMode_PCRIEN_Pos) |
+        /* nack interrupt: enabled */
+        (1 << USIC_CH_PCR_IICMode_NACKIEN_Pos) |
         /* arbitration lost interrupt: disabled  */
-        (0 << USIC_CH_PCR_IICMode_ARLIEN_Pos)  |
+        (1 << USIC_CH_PCR_IICMode_ARLIEN_Pos)  |
         /* slave read request interrupt: disabled */
         (0 << USIC_CH_PCR_IICMode_SRRIEN_Pos) |
         /* error interrupt: disabled  */
-        (0 << USIC_CH_PCR_IICMode_ERRIEN_Pos) |
+        (1 << USIC_CH_PCR_IICMode_ERRIEN_Pos) |
         /* slave acknowledge disable: .. */
         (0 << USIC_CH_PCR_IICMode_SACKDIS_Pos) |
         /* hardware delay: none */
@@ -106,3 +110,20 @@ static const usic_mode_t _xmc_usic_i2c_master_mode = {
 #endif
 
 #endif /* USIC_I2C_H_ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
