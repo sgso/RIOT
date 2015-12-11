@@ -65,8 +65,6 @@ void usic_init(const usic_channel_t *usic_ch,
     usic->DX2CR = usic_ch->inputs.dx2 << USIC_CH_DX2CR_DSEL_Pos;
     usic->DX3CR = usic_ch->inputs.dx3 << USIC_CH_DX3CR_DSEL_Pos;
 
-    /* interrupt node point register */
-    usic->INPR = controls->inpr;
     /* shift control register */
     usic->SCTR = controls->sctr;
     /* transmit control/status register */

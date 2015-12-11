@@ -98,8 +98,6 @@ static const usic_mode_t _xmc_usic_i2c_master_mode = {
         (0 << USIC_CH_PCR_IICMode_ACKIEN_Pos) |
         /* master clock output: disabled */
         (0 << USIC_CH_PCR_IICMode_MCLK_Pos),
-
-    .inpr = 0
 };
 /** @} */
 

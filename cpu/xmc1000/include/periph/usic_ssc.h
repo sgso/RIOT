@@ -78,17 +78,14 @@ static const usic_mode_t _xmc_usic_ssc_master_mode = {
         (1 << USIC_CH_PCR_SSCMode_FEM_Pos) |
         /* master-slave-select signal generation: enabled */
         (1 << USIC_CH_PCR_SSCMode_MSLSEN_Pos) |
+        /* master-slave-select interrupt: enabled */
+        (1 << USIC_CH_PCR_SSCMode_MSLSIEN_Pos) |
         /* select control: direct select mode */
         (1 << USIC_CH_PCR_SSCMode_SELCTR_Pos) |
         /* select active high: inverted */
         (1 << USIC_CH_PCR_SSCMode_SELINV_Pos) |
         /* select output: the corresponding SELOx line can be activated */
         (1 <<  USIC_CH_PCR_SSCMode_SELO_Pos),
-
-    .inpr =
-        /* no interrupts for SPI */
-        0
-
 };
 /** @} */
 

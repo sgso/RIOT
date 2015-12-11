@@ -63,7 +63,6 @@ typedef struct {
     uint32_t sctr;          /**< shift control register             */
     uint32_t tcsr;          /**< transmit control/status register   */
     uint32_t pcr;           /**< protocol control register          */
-    uint32_t inpr;          /**< interrupt node pointer register    */
 } usic_mode_t;
 /** @} */
 

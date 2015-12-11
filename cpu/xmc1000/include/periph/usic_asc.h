@@ -69,8 +69,6 @@ static const usic_mode_t _xmc_usic_asc_mode = {
         (4 << USIC_CH_PCR_ASCMode_SP_Pos) |
         /* stop bits: 1 */
         (0 << USIC_CH_PCR_ASCMode_STPB_Pos),
-
-    .inpr = 0
 };
 /** @} */
 
