@@ -46,16 +46,16 @@ static fifo_ops_t fifo = { NULL, NULL, 0, 0, 0, 0, KERNEL_PID_UNDEF };
 /**
  * @brief Array holding one pre-initialized mutex for each SPI device
  */
-static mutex_t locks[] =  {
-    [SPI_0] = MUTEX_INIT,
-};
+/* static mutex_t locks[] =  { */
+/*     [SPI_0] = MUTEX_INIT, */
+/* }; */
 
-static int isr_tx, isr_pp, isr_rx;
+/* static int isr_tx, isr_pp, isr_rx; */
 
 void spi_isr_tx(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = channel ? USIC0_CH1 : USIC0_CH0;
-    isr_tx++;
+    USIC_CH_TypeDef *usic = usic_get(channel);
+    /* isr_tx++; */
 
     while (fifo.tx_len) {
         const uint8_t tci = (fifo.tx_len == 1) ? 0x17 : 0x07;
@@ -81,8 +81,8 @@ void spi_isr_tx(uint8_t channel)
 
 void spi_isr_protocol(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = channel ? USIC0_CH1 : USIC0_CH0;
-    isr_pp++;
+    USIC_CH_TypeDef *usic = usic_get(channel);
+    /* isr_pp++; */
 
     usic->PSCR = USIC_CH_PSCR_CST2_Msk;
     
@@ -90,8 +90,8 @@ void spi_isr_protocol(uint8_t channel)
         
     } else {
         /* frame end */
-        gpio_toggle(GPIO_PIN(P0, 0));
-        gpio_toggle(GPIO_PIN(P0, 0));
+        /* gpio_toggle(GPIO_PIN(P0, 0)); */
+        /* gpio_toggle(GPIO_PIN(P0, 0)); */
         thread_wakeup(fifo.pid);
         thread_yield();
     }
@@ -99,16 +99,16 @@ void spi_isr_protocol(uint8_t channel)
 
 void spi_isr_rx(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = channel ? USIC0_CH1 : USIC0_CH0;
-    isr_rx++;
-    gpio_clear(GPIO_PIN(P0, 5));
+    USIC_CH_TypeDef *usic = usic_get(channel);
+    /* isr_rx++; */
+    /* gpio_clear(GPIO_PIN(P0, 5)); */
     
     while ((USIC0_CH1->TRBSR & USIC_CH_TRBSR_RBFLVL_Msk) &&
            fifo.rx_len--) {
         *(fifo.rx_buf++) = (char)usic->OUTR;
     }
 
-    gpio_set(GPIO_PIN(P0, 5));
+    /* gpio_set(GPIO_PIN(P0, 5)); */
     
     if (sched_context_switch_request) {
         thread_yield();
@@ -128,10 +128,7 @@ int spi_conf_pins(spi_t spi)
 
 int spi_init_master(spi_t dev, spi_conf_t conf, spi_speed_t speed)
 {
-    const usic_channel_t *usic_ch = (usic_channel_t *)&spi_instance[dev];
-
-    /* returns 0 for USIC0_CH0 & 1 for USIC0_CH1 */
-    const uint8_t u_index = usic_index(usic_ch) * 3;
+    const uint8_t u_index = spi_instance[dev].channel * 3;
 
     const usic_fdr_t fdr = {
         /* STEP value: (640/1024) * 32Mhz = 20Mhz base clock */
@@ -188,25 +185,13 @@ int spi_init_master(spi_t dev, spi_conf_t conf, spi_speed_t speed)
     }
 
     /* setup & start the USIC channel */
-    usic_init(usic_ch, brg, fdr);
+    USIC_CH_TypeDef *usic = usic_init((usic_channel_t *)&spi_instance[dev], brg, fdr,
+                                      &spi_isr_tx, &spi_isr_protocol, &spi_isr_rx, SPI_IRQ_PRIO);
 
     /* protocol interrupt for MSLS change detection */
-    usic_ch->usic->INPR = (u_index + 1) << USIC_CH_INPR_PINP_Pos;
+    usic->INPR = (u_index + 1) << USIC_CH_INPR_PINP_Pos;
 
-    /* register our interrupt service routines with USIC */
-    usic_mplex[u_index]     = &spi_isr_tx;
-    usic_mplex[u_index + 1] = &spi_isr_protocol;
-    usic_mplex[u_index + 2] = &spi_isr_rx;
-
-    NVIC_SetPriority(USIC0_0_IRQn + u_index, SPI_IRQ_PRIO);
-    NVIC_SetPriority(USIC0_1_IRQn + u_index, SPI_IRQ_PRIO);
-    NVIC_SetPriority(USIC0_2_IRQn + u_index, SPI_IRQ_PRIO);
-
-    NVIC_EnableIRQ(USIC0_0_IRQn + u_index);
-    NVIC_EnableIRQ(USIC0_1_IRQn + u_index);
-    NVIC_EnableIRQ(USIC0_2_IRQn + u_index);
-
-    usic_ch->usic->TBCTR =
+    usic->TBCTR =
 
         /* FIFO size is configurable between 2 (rx_size = 1) and 32
            (rx_size = 5). */
@@ -228,7 +213,7 @@ int spi_init_master(spi_t dev, spi_conf_t conf, spi_speed_t speed)
         (1 << USIC_CH_TBCTR_STBIEN_Pos) |
         (u_index << USIC_CH_TBCTR_STBINP_Pos);
 
-    usic_ch->usic->RBCTR =
+    usic->RBCTR =
 
         /* FIFO size is configurable between 2 (rx_size = 1) and 32
            (rx_size = 5). */
@@ -258,17 +243,17 @@ int spi_init_master(spi_t dev, spi_conf_t conf, spi_speed_t speed)
     gpio_init(spi_instance[dev].sclk_pin & 0xff,
               GPIO_DIR_OUT | (spi_instance[dev].sclk_pin >> 8), GPIO_NOPULL);
 
-    gpio_init(GPIO_PIN(P0, 0), GPIO_DIR_OUT, GPIO_NOPULL);
-    gpio_init(GPIO_PIN(P0, 5), GPIO_DIR_OUT, GPIO_NOPULL);
-    gpio_set(GPIO_PIN(P0, 0));
-    gpio_set(GPIO_PIN(P0, 5));
+    /* gpio_init(GPIO_PIN(P0, 0), GPIO_DIR_OUT, GPIO_NOPULL); */
+    /* gpio_init(GPIO_PIN(P0, 5), GPIO_DIR_OUT, GPIO_NOPULL); */
+    /* gpio_set(GPIO_PIN(P0, 0)); */
+    /* gpio_set(GPIO_PIN(P0, 5)); */
     
     return 0;
 }
 
 static void _spi_setup(USIC_CH_TypeDef *usic)
 {
-    isr_rx = isr_tx = isr_pp = 0;
+    /* isr_rx = isr_tx = isr_pp = 0; */
     
     fifo.error = 0;
     fifo.pid = thread_getpid();
@@ -300,7 +285,7 @@ int spi_transfer_byte(spi_t spi, char out, char *in)
 
 int spi_transfer_bytes(spi_t dev, char *out, char *in, unsigned int length)
 {
-    USIC_CH_TypeDef *usic = spi_instance[dev].usic;
+    USIC_CH_TypeDef *usic = usic_get(spi_instance[dev].channel);
 
     fifo.tx_buf = out;
     fifo.tx_len = length;
@@ -323,8 +308,8 @@ int spi_transfer_bytes(spi_t dev, char *out, char *in, unsigned int length)
         *(fifo.rx_buf++) = (char)usic->OUTR;
     }
     
-    printf("spi_transfer_bytes(in: %p, out: %p, length: %i) rx: %i, tx: %i, pp: %i\n",
-           (void*)out, (void*)in, length, isr_rx, isr_tx, isr_pp);
+    /* printf("spi_transfer_bytes(in: %p, out: %p, length: %i) rx: %i, tx: %i, pp: %i\n", */
+    /*        (void*)out, (void*)in, length, isr_rx, isr_tx, isr_pp); */
     
     return length;
 }
@@ -336,7 +321,7 @@ int spi_transfer_reg(spi_t dev, uint8_t reg, char out, char *in)
 
 int spi_transfer_regs(spi_t dev, uint8_t reg, char *out, char *in, unsigned int length)
 {
-    USIC_CH_TypeDef *usic = spi_instance[dev].usic;
+    USIC_CH_TypeDef *usic = usic_get(spi_instance[dev].channel);
 
     fifo.tx_buf = out;
     fifo.tx_len = length;
@@ -355,9 +340,9 @@ int spi_transfer_regs(spi_t dev, uint8_t reg, char *out, char *in, unsigned int 
     fifo.address = usic->OUTR;
     usic->RBCTR |= USIC_CH_RBCTR_SRBIEN_Msk;
     
-    gpio_clear(GPIO_PIN(P0, 0));
+    /* gpio_clear(GPIO_PIN(P0, 0)); */
     thread_sleep();
-    gpio_set(GPIO_PIN(P0, 0));
+    /* gpio_set(GPIO_PIN(P0, 0)); */
 
     /* collect the last bytes that have not triggered an interrupt */
     while ((usic->TRBSR & USIC_CH_TRBSR_RBFLVL_Msk) &&
@@ -365,28 +350,20 @@ int spi_transfer_regs(spi_t dev, uint8_t reg, char *out, char *in, unsigned int 
         *(fifo.rx_buf++) = (char)usic->OUTR;
     }
     
-    printf("spi_transfer_regs(reg: %u, out: %p, in: %p, length: %i) rx: %i, tx: %i, pp: %i\n",
-           reg, (void*)out, (void*)in, length, isr_rx, isr_tx, isr_pp);
+    /* printf("spi_transfer_regs(reg: %u, out: %p, in: %p, length: %i) rx: %i, tx: %i, pp: %i\n", */
+    /*        reg, (void*)out, (void*)in, length, isr_rx, isr_tx, isr_pp); */
     
     return length;
 }
 
-int spi_acquire(spi_t spi)
+int spi_acquire(spi_t dev)
 {
-    if (spi >= SPI_NUMOF) {
-        return -1;
-    }
-    mutex_lock(&locks[spi]);
-    return 0;
+    return usic_lock(spi_instance[dev].channel);
 }
 
-int spi_release(spi_t spi)
+int spi_release(spi_t dev)
 {
-    if (spi >= SPI_NUMOF) {
-        return -1;
-    }
-    mutex_unlock(&locks[spi]);
-    return 0;
+    return usic_unlock(spi_instance[dev].channel);
 }
 
 void spi_poweron(spi_t dev)

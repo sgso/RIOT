@@ -22,6 +22,7 @@
 #define USIC_H_
 
 #include "periph_cpu.h"
+#include "mutex.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -141,7 +142,7 @@ typedef struct __attribute__((packed)) {
  * @{
  */
 typedef struct __attribute__((packed)) {
-    USIC_CH_TypeDef *usic;          /**< pointer to USIC channel                             */
+    const uint8_t channel;
     const usic_mode_t *mode;        /**< pointer to the control mode for this channel        */
     const usic_fifo_t fifo;         /**< configuration of the FIFOs used by this channel     */
     const usic_dx_t inputs;         /**< configuration of the input stages 0 - 4             */
@@ -157,7 +158,7 @@ typedef struct __attribute__((packed)) {
  * @{
  */
 typedef struct __attribute__((packed)) {
-    USIC_CH_TypeDef *usic;          /**< pointer to USIC channel                             */
+    const uint8_t channel;
     const usic_mode_t *mode;        /**< pointer to the control mode for this USIC           */
     const usic_fifo_t fifo;         /**< configuration of the FIFOs used by this channel     */
     const usic_dx_t inputs;         /**< configuration of the input stages 0 - 4             */
@@ -173,7 +174,7 @@ typedef struct __attribute__((packed)) {
  * @{
  */
 typedef struct __attribute__((packed)) {
-    USIC_CH_TypeDef *usic;          /**< pointer to USIC channel                             */
+    const uint8_t channel;
     const usic_mode_t *mode;        /**< pointer to the control mode for this USIC           */
     const usic_fifo_t fifo;         /**< configuration of the FIFOs used by this channel     */
     const usic_dx_t inputs;         /**< configuration of the input stages 0 - 4             */
@@ -190,7 +191,7 @@ typedef struct __attribute__((packed)) {
  * @{
  */
 typedef struct __attribute__((packed)) {
-    USIC_CH_TypeDef *usic;          /**< pointer to USIC channel                             */
+    const uint8_t channel;
     const usic_mode_t *mode;        /**< pointer to the control mode for this USIC           */
     const usic_fifo_t fifo;         /**< configuration of the FIFOs used by this channel     */
     const usic_dx_t inputs;         /**< configuration of the input stages 0 - 4             */
@@ -205,16 +206,35 @@ typedef struct __attribute__((packed)) {
  * @brief   USIC channel initialization function
  * @{
  */
-void usic_init(const usic_channel_t *usic_ch,
-               const usic_brg_t brg,
-               const usic_fdr_t fdr);
+USIC_CH_TypeDef *usic_init(const usic_channel_t *usic_ch,
+                           const usic_brg_t brg,
+                           const usic_fdr_t fdr,
+                           void (* irq0)(uint8_t),
+                           void (* irq1)(uint8_t),
+                           void (* irq2)(uint8_t),
+                           const uint8_t irqp);
 
-static inline unsigned usic_index(const usic_channel_t *usic_channel)
-{
-    return ((unsigned)usic_channel->usic & 0x200) ? 1 : 0;
+/**
+ * @brief   Get register address for USIC channel
+ * @{
+ */
+static inline USIC_CH_TypeDef* usic_get(const uint8_t channel) {
+    return ((USIC_CH_TypeDef *)
+            (USIC0_CH0_BASE +
+             (channel ? (USIC0_CH1_BASE - USIC0_CH0_BASE) : 0)));
 }
 
-extern void (* usic_mplex[6])(uint8_t);
+/**
+ * @brief   USIC channel mutex lock
+ * @{
+ */
+int usic_lock(uint8_t channel);
+
+/**
+ * @brief   USIC channel mutex unlock
+ * @{
+ */
+int usic_unlock(uint8_t channel);
 
 #ifdef __cplusplus
 }

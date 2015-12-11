@@ -49,16 +49,9 @@ typedef struct {
 
 static fifo_ops_t fifo = { NULL, NULL, 0, 0, 0, 0, KERNEL_PID_UNDEF };
 
-/**
- * @brief Array holding one pre-initialized mutex for each I2C device
- */
-static mutex_t locks[] =  {
-    [I2C_0] = MUTEX_INIT,
-};
-
 void i2c_isr_tx(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = channel ? USIC0_CH1 : USIC0_CH0;
+    USIC_CH_TypeDef *usic = usic_get(channel);
 
     while (fifo.tx_len > 1) {
         if (fifo.tx_buf) {
@@ -118,7 +111,7 @@ sched:
 
 void i2c_isr_protocol(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = channel ? USIC0_CH1 : USIC0_CH0;
+    USIC_CH_TypeDef *usic = usic_get(channel);
 
     if (usic->PSR & (USIC_CH_PSR_IICMode_NACK_Msk |
                      USIC_CH_PSR_IICMode_ERR_Msk |
@@ -135,7 +128,7 @@ void i2c_isr_protocol(uint8_t channel)
 
 void i2c_isr_rx(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = channel ? USIC0_CH1 : USIC0_CH0;
+    USIC_CH_TypeDef *usic = usic_get(channel);
 
     while ((USIC0_CH1->TRBSR & USIC_CH_TRBSR_RBFLVL_Msk) &&
            fifo.rx_len--) {
@@ -149,10 +142,8 @@ void i2c_isr_rx(uint8_t channel)
 
 int i2c_init_master(i2c_t dev, i2c_speed_t speed)
 {
-    const usic_channel_t *usic_ch = (usic_channel_t *)&i2c_instance[dev];
-
     /* returns 0 for USIC0_CH0 & 1 for USIC0_CH1 */
-    const uint8_t u_index = usic_index(usic_ch) * 3;
+    const uint8_t u_index = i2c_instance[dev].channel * 3;
 
     if (speed != I2C_SPEED_NORMAL) {
         return -2;
@@ -173,24 +164,13 @@ int i2c_init_master(i2c_t dev, i2c_speed_t speed)
     };
 
     /* setup & start the USIC channel */
-    usic_init(usic_ch, brg, fdr);
+    USIC_CH_TypeDef *usic = usic_init((usic_channel_t *)&i2c_instance[dev],
+                                      brg, fdr,
+                                      &i2c_isr_tx, &i2c_isr_protocol, &i2c_isr_rx, I2C_IRQ_PRIO);
 
-    usic_ch->usic->INPR = (u_index + 1) << USIC_CH_INPR_PINP_Pos;
-
-    /* register our interrupt service routines with USIC */
-    usic_mplex[u_index]     = &i2c_isr_tx;
-    usic_mplex[u_index + 1] = &i2c_isr_protocol;
-    usic_mplex[u_index + 2] = &i2c_isr_rx;
-
-    NVIC_SetPriority(USIC0_0_IRQn + u_index, I2C_IRQ_PRIO);
-    NVIC_SetPriority(USIC0_1_IRQn + u_index, I2C_IRQ_PRIO);
-    NVIC_SetPriority(USIC0_2_IRQn + u_index, I2C_IRQ_PRIO);
-
-    NVIC_EnableIRQ(USIC0_0_IRQn + u_index);
-    NVIC_EnableIRQ(USIC0_1_IRQn + u_index);
-    NVIC_EnableIRQ(USIC0_2_IRQn + u_index);
-
-    usic_ch->usic->TBCTR =
+    usic->INPR = (u_index + 1) << USIC_CH_INPR_PINP_Pos;
+   
+    usic->TBCTR =
 
         /* FIFO size is configurable between 2 (rx_size = 1) and 32
            (rx_size = 5). */
@@ -212,7 +192,7 @@ int i2c_init_master(i2c_t dev, i2c_speed_t speed)
         (1 << USIC_CH_TBCTR_STBIEN_Pos) |
         (u_index << USIC_CH_TBCTR_STBINP_Pos);
 
-    usic_ch->usic->RBCTR =
+    usic->RBCTR =
 
         /* FIFO size is configurable between 2 (rx_size = 1) and 32
            (rx_size = 5). */
@@ -293,7 +273,7 @@ int i2c_read_byte(i2c_t dev, uint8_t address, char *data)
 
 int i2c_read_bytes(i2c_t dev, uint8_t address, char *data, int length)
 {
-    USIC_CH_TypeDef *usic = i2c_instance[dev].usic;
+    USIC_CH_TypeDef *usic = usic_get(i2c_instance[dev].channel);
 
     fifo.tx_buf = NULL;
     fifo.tx_len = length;
@@ -313,7 +293,7 @@ int i2c_read_bytes(i2c_t dev, uint8_t address, char *data, int length)
 
 int i2c_write_bytes(i2c_t dev, uint8_t address, char *data, int length)
 {
-    USIC_CH_TypeDef *usic = i2c_instance[dev].usic;
+    USIC_CH_TypeDef *usic = usic_get(i2c_instance[dev].channel);
 
     fifo.tx_buf = data;
     fifo.tx_len = length;
@@ -339,7 +319,7 @@ int i2c_write_byte(i2c_t dev, uint8_t address, char data)
 
 int i2c_read_regs(i2c_t dev, uint8_t address, uint8_t reg, char *data, int length)
 {
-    USIC_CH_TypeDef *usic = i2c_instance[dev].usic;
+    USIC_CH_TypeDef *usic = usic_get(i2c_instance[dev].channel);
 
     fifo.tx_buf = (char *)&reg;
     fifo.tx_len = 1;
@@ -364,7 +344,7 @@ int i2c_read_reg(i2c_t dev, uint8_t address, uint8_t reg, char *data)
 
 int i2c_write_regs(i2c_t dev, uint8_t address, uint8_t reg, char *data, int length)
 {
-    USIC_CH_TypeDef *usic = i2c_instance[dev].usic;
+    USIC_CH_TypeDef *usic = usic_get(i2c_instance[dev].channel);
 
     fifo.tx_buf = data;
     fifo.tx_len = length;
@@ -392,22 +372,12 @@ int i2c_write_reg(i2c_t dev, uint8_t address, uint8_t reg, char data)
 
 int i2c_acquire(i2c_t dev)
 {
-    if (dev >= I2C_NUMOF) {
-        return -1;
-    }
-
-    mutex_lock(&locks[dev]);
-    return 0;
+    return usic_lock(i2c_instance[dev].channel);
 }
 
 int i2c_release(i2c_t dev)
 {
-    if (dev >= I2C_NUMOF) {
-        return -1;
-    }
-
-    mutex_unlock(&locks[dev]);
-    return 0;
+    return usic_unlock(i2c_instance[dev].channel);
 }
 
 void i2c_poweron(i2c_t dev)

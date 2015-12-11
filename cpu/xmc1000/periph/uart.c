@@ -38,21 +38,12 @@
  */
 static uart_isr_ctx_t uart_ctx[UART_NUMOF];
 
-#if UART_ENABLE_FIFOS
-
-static mutex_t tx_mutex[UART_NUMOF] = {MUTEX_INIT};
-
-#endif /* UART_ENABLE_FIFOS */
-
 void uart_isr_rx(uint8_t);
 
 int uart_init(uart_t dev, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg)
 {
-    const usic_channel_t *usic_ch = (usic_channel_t *)&uart_instance[dev];
+    const uint8_t u_index = uart_instance[dev].channel * 3;
 
-    /* gives 0 for USIC0_CH0 & 1 for USIC0_CH1 */
-    const uint8_t u_index = usic_index(usic_ch) * 3;
-        
     const usic_fdr_t fdr = {
         /* STEP value: (944/1024) * 32Mhz = 29.5Mhz (16 x 1.8432 Mhz) */
         .field.step = 944,
@@ -74,19 +65,14 @@ int uart_init(uart_t dev, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg)
 
     /* register receive callback */
     uart_ctx[dev].rx_cb = rx_cb;
-    uart_ctx[dev].arg   = usic_ch->usic;
-
-    /* register uart_isr_rx for receiving and enable it */
-    usic_mplex[u_index] = &uart_isr_rx;
-    NVIC_SetPriority(USIC0_0_IRQn + u_index, UART_IRQ_PRIO);
-    NVIC_EnableIRQ(USIC0_0_IRQn + u_index);
-
+    uart_ctx[dev].arg   = (void*)&uart_instance[dev].channel;
+    
     /* setup & start the USIC channel */
-    usic_init(usic_ch, brg, fdr);
-
-#if UART_ENABLE_FIFOS
-
-    uart_instance[dev].usic->TBCTR =
+    USIC_CH_TypeDef *usic = usic_init((usic_channel_t *)&uart_instance[dev],
+                                      brg, fdr,
+                                      &uart_isr_rx, NULL, NULL, UART_IRQ_PRIO);
+    
+    usic->TBCTR =
         (uart_instance[dev].fifo.tx_size << USIC_CH_TBCTR_SIZE_Pos) |
         (uart_instance[dev].fifo.tx_dptr << USIC_CH_TBCTR_DPTR_Pos) |
         (1 << USIC_CH_TBCTR_LIMIT_Pos)  |
@@ -100,45 +86,41 @@ int uart_init(uart_t dev, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg)
         (0 << USIC_CH_TBCTR_STBTM_Pos)  |
         /* standard TxFIFO event trigger: activated */
         (1 << USIC_CH_TBCTR_STBTEN_Pos) |
-        /* routed to isr_usic0 */
-        (0 << USIC_CH_TBCTR_STBINP_Pos) |
+        (u_index << USIC_CH_TBCTR_STBINP_Pos) |
         /* interrupt initially disabled */
         (0 << USIC_CH_TBCTR_STBIEN_Pos);
 
-    uart_instance[dev].usic->RBCTR =
+    usic->RBCTR =
         /* RxFIFO size configurable */
         (uart_instance[dev].fifo.rx_size << USIC_CH_RBCTR_SIZE_Pos) |
         (uart_instance[dev].fifo.rx_dptr << USIC_CH_RBCTR_DPTR_Pos) |
-        (3 << USIC_CH_RBCTR_RCIM_Pos) |
         (1 << USIC_CH_RBCTR_LIMIT_Pos) |
+        (0 << USIC_CH_RBCTR_LOF_Pos) |
+        (3 << USIC_CH_RBCTR_RCIM_Pos) |
+
         (1 << USIC_CH_RBCTR_SRBTM_Pos) |
         (1 << USIC_CH_RBCTR_SRBIEN_Pos) |
         (1 << USIC_CH_RBCTR_SRBTEN_Pos) |
-        (5 << USIC_CH_RBCTR_SRBINP_Pos) |
+        (u_index << USIC_CH_RBCTR_SRBINP_Pos) |
         /* RCI mode: enabled */
-        (1 << USIC_CH_RBCTR_RNM_Pos) |
-        (0 << USIC_CH_RBCTR_LOF_Pos);
-
-#endif /* UART_ENABLE_FIFOS */
+        (1 << USIC_CH_RBCTR_RNM_Pos);
 
     return 0;
 }
 
 void uart_write(uart_t dev, const uint8_t *data, size_t len)
 {
-    USIC_CH_TypeDef *usic = uart_instance[dev].usic;
-
-#if UART_ENABLE_FIFOS
+    USIC_CH_TypeDef *usic = usic_get(uart_instance[dev].channel);
 
     const unsigned fifo_size = (1 << uart_instance[dev].fifo.tx_size);
 
     while (len) {
         size_t nbytes = len > fifo_size ? fifo_size : len;
 
-        mutex_lock(&tx_mutex[dev]);
+        usic_lock(uart_instance[dev].channel);
 
         /* disable interrupt for standard transmit buffer event */
-        USIC0_CH0->TBCTR &= ~USIC_CH_TBCTR_STBIEN_Msk;
+        usic->TBCTR &= ~USIC_CH_TBCTR_STBIEN_Msk;
 
         /* write up to fifo_size bytes into transmit FIFO */
         for (int i = 0; i < nbytes; i++) {
@@ -146,28 +128,16 @@ void uart_write(uart_t dev, const uint8_t *data, size_t len)
         }
 
         /* enable interrupt for standard transmit buffer event */
-        uart_instance[dev].usic->TBCTR |= (1 << USIC_CH_TBCTR_STBIEN_Pos);
+        usic->TBCTR |= (1 << USIC_CH_TBCTR_STBIEN_Pos);
 
         data += nbytes;
         len -= nbytes;
     }
-
-#else
-
-    for (int i = 0; i < len; i++) {
-        while (usic->TCSR & USIC_CH_TCSR_TDV_Msk) {
-            /* wait for transmission to be ready */
-        }
-
-        usic->TBUF[0] = data[i];
-    }
-
-#endif /* UART_ENABLE_FIFOS */
 }
 
-void uart_poweron(uart_t uart)
+void uart_poweron(uart_t dev)
 {
-    USIC_CH_TypeDef *usic = uart_instance[uart].usic;
+    USIC_CH_TypeDef *usic = usic_get(uart_instance[dev].channel);
 
     /* clear clock */
     GATING_CLEAR(USIC0);
@@ -177,9 +147,9 @@ void uart_poweron(uart_t uart)
                    (USIC_CH_KSCFG_BPNOM_Msk | USIC_CH_KSCFG_BPMODEN_Msk));
 }
 
-void uart_poweroff(uart_t uart)
+void uart_poweroff(uart_t dev)
 {
-    USIC_CH_TypeDef *usic = uart_instance[uart].usic;
+    USIC_CH_TypeDef *usic = usic_get(uart_instance[dev].channel);
 
     /* disable BUSY reporting for receive */
     usic->PCR &= ~USIC_CH_PCR_ASCMode_RSTEN_Msk;
@@ -201,26 +171,16 @@ void uart_poweroff(uart_t uart)
 
 void uart_isr_rx(uint8_t channel)
 {
-    USIC_CH_TypeDef *usic = uart_instance[UART_DEV(0)].usic;
-
-#if UART_ENABLE_FIFOS
+    USIC_CH_TypeDef *usic = usic_get(channel);
 
     if (usic->TRBSR & USIC_CH_TRBSR_STBI_Msk) {
-        mutex_unlock(&tx_mutex[UART_DEV(0)]);
+        usic_unlock(channel);
     }
 
     if (usic->TRBSR & USIC_CH_TRBSR_RBFLVL_Msk) {
-        uart_ctx[UART_DEV(0)].rx_cb(uart_ctx[UART_DEV(0)].arg, (char)usic->OUTR);
+        uart_ctx[channel].rx_cb(uart_ctx[channel].arg, (char)usic->OUTR);
     }
 
-#else
-
-    if (usic->PSR & USIC_CH_PSR_RIF_Msk) {
-        uart_ctx[UART_DEV(0)].rx_cb(uart_ctx[UART_DEV(0)].arg, (char)usic->RBUF);
-        usic->PSCR = USIC_CH_PSCR_CRIF_Msk;
-    }
-
-#endif /* UART_ENABLE_FIFOS */
     if (sched_context_switch_request) {
         thread_yield();
     }
