@@ -119,6 +119,13 @@ static const spi_instance_t spi_instance[] = {
             .dx2 = USIC_DX_HIGH
         },
 
+        .fifo    = {
+            .rx_dptr = 32,
+            .rx_size = 4,
+            .tx_dptr = 48,
+            .tx_size = 4
+        },
+        
         .mode     = &_xmc_usic_ssc_master_mode,
 
         .mosi_pin = GPIO_ALT(P0, 7, GPIO_ALT_OUT_7),
