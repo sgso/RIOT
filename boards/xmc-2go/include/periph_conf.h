@@ -76,8 +76,7 @@ extern "C" {
  */
 static const uart_instance_t uart_instance[] = {
     {
-        .usic    = USIC0_CH0,
-
+        .channel = 0,
         .fifo    = {
             .rx_dptr = 0,
             .rx_size = 4,
@@ -112,8 +111,7 @@ static const uart_instance_t uart_instance[] = {
  */
 static const spi_instance_t spi_instance[] = {
     {
-        .usic     = USIC0_CH1,
-
+        .channel  = 1,
         .inputs = {
             .dx0 = USIC_DXC | USIC_CH_DX0CR_INSW_Msk,
             .dx2 = USIC_DX_HIGH
@@ -152,8 +150,7 @@ static const spi_instance_t spi_instance[] = {
  */
 static const i2c_instance_t i2c_instance[] = {
     {
-        .usic     = USIC0_CH1,
-
+        .channel  = 1,
         .inputs = {
             .dx0 = USIC_DXC,
             .dx1 = USIC_DXB
