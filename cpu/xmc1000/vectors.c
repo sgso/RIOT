@@ -58,12 +58,9 @@ WEAK_DEFAULT void isr_eru1(void);
 WEAK_DEFAULT void isr_eru2(void);
 WEAK_DEFAULT void isr_eru3(void);
 
-WEAK_DEFAULT void isr_usic0(void);
-WEAK_DEFAULT void isr_usic1(void);
-WEAK_DEFAULT void isr_usic2(void);
-WEAK_DEFAULT void isr_usic3(void);
-WEAK_DEFAULT void isr_usic4(void);
-WEAK_DEFAULT void isr_usic5(void);
+/* All USIC interrupts go to the same isr and to individual handlers
+ * from there */
+WEAK_DEFAULT void isr_usic(void);
 
 WEAK_DEFAULT void isr_vadc0(void);
 WEAK_DEFAULT void isr_vadc1(void);
@@ -118,17 +115,17 @@ __attribute__((naked, used, section(".veneers"))) void veneer_jumps(void)
         "mov pc, r0                   \n"
         ".fill 0x08                   \n"   /* 2 slots unused */
 
-        "ldr r0, =isr_usic0           \n"   /* universal serial interface channel */
+        "ldr r0, =isr_usic            \n"   /* universal serial interface channel */
         "mov pc, r0                   \n"
-        "ldr r0, =isr_usic1           \n"   /* universal serial interface channel */
+        "ldr r0, =isr_usic            \n"   /* universal serial interface channel */
         "mov pc, r0                   \n"
-        "ldr r0, =isr_usic2           \n"   /* universal serial interface channel */
+        "ldr r0, =isr_usic            \n"   /* universal serial interface channel */
         "mov pc, r0                   \n"
-        "ldr r0, =isr_usic3           \n"   /* universal serial interface channel */
+        "ldr r0, =isr_usic            \n"   /* universal serial interface channel */
         "mov pc, r0                   \n"
-        "ldr r0, =isr_usic4           \n"   /* universal serial interface channel */
+        "ldr r0, =isr_usic            \n"   /* universal serial interface channel */
         "mov pc, r0                   \n"
-        "ldr r0, =isr_usic5           \n"   /* universal serial interface channel */
+        "ldr r0, =isr_usic            \n"   /* universal serial interface channel */
         "mov pc, r0                   \n"
         "ldr r0, =isr_vadc0           \n"   /* analog-to-digital converter */
         "mov pc, r0                   \n"

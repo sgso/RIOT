@@ -24,6 +24,13 @@
 #include "periph/gpio.h"
 #include "periph/usic.h"
 
+void (* usic_mplex[6])(uint8_t);
+
+void isr_usic(void) {
+    const uint8_t irqn = __get_IPSR() - 25;
+    usic_mplex[irqn](irqn > 2 ? 1 : 0);
+}
+
 void usic_init(const usic_channel_t *usic_ch,
                const usic_brg_t brg,
                const usic_fdr_t fdr)

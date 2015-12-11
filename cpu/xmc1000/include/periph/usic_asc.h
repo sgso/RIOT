@@ -70,10 +70,7 @@ static const usic_mode_t _xmc_usic_asc_mode = {
         /* stop bits: 1 */
         (0 << USIC_CH_PCR_ASCMode_STPB_Pos),
 
-    .inpr =
-        /* set receive interrupt pointer to SR5 */
-        5 << USIC_CH_INPR_RINP_Pos
-
+    .inpr = 0
 };
 /** @} */
 

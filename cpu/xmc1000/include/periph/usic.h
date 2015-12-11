@@ -181,6 +181,8 @@ typedef struct __attribute__((packed)) {
     const gpio_alt_t sda_pin;       /**< MOSI pin                                            */
     const gpio_alt_t scl_pin;       /**< MISO pin                                            */
 } i2c_instance_t;
+
+#define I2C_NUMOF         ((sizeof(i2c_instance) / sizeof(i2c_instance_t)))
 /** @} */
 
 
@@ -207,6 +209,13 @@ typedef struct __attribute__((packed)) {
 void usic_init(const usic_channel_t *usic_ch,
                const usic_brg_t brg,
                const usic_fdr_t fdr);
+
+static inline unsigned usic_index(const usic_channel_t *usic_channel)
+{
+    return ((unsigned)usic_channel->usic & 0x200) ? 1 : 0;
+}
+
+extern void (* usic_mplex[6])(uint8_t);
 
 #ifdef __cplusplus
 }
