@@ -80,9 +80,9 @@ static const uart_instance_t uart_instance[] = {
 
         .fifo    = {
             .rx_dptr = 0,
-            .rx_size = 5,
-            .tx_dptr = 31,
-            .tx_size = 5,
+            .rx_size = 4,
+            .tx_dptr = 16,
+            .tx_size = 4
         },
 
         .inputs = {
@@ -152,6 +152,13 @@ static const i2c_instance_t i2c_instance[] = {
             .dx1 = USIC_DXB
         },
 
+        .fifo    = {
+            .rx_dptr = 32,
+            .rx_size = 4,
+            .tx_dptr = 48,
+            .tx_size = 4
+        },
+
         .mode     = &_xmc_usic_i2c_master_mode,
 
         .sda_pin  = GPIO_ALT(P0, 6, GPIO_ALT_OUT_7 | GPIO_DIR_OPEN_DRAIN),
@@ -165,7 +172,6 @@ static const i2c_instance_t i2c_instance[] = {
  * @{
  */
 #define I2C_IRQ_PRIO       CPU_DEFAULT_IRQ_PRIO
-#define I2C_NUMOF          (1U)
 #define I2C_0_EN           (1)
 /** @} */
 
